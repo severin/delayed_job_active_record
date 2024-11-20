@@ -156,33 +156,35 @@ describe Delayed::Backend::ActiveRecord::Job do
     end
   end
 
-  describe "#last_error=" do
-    subject(:job_with_last_error) do
-      described_class.new(payload_object: EnqueueJobMod.new, last_error: error_message)
-    end
-
-    describe "with a short error message" do
-      let(:error_message) { "foo" }
-
-      it "does not touch the message" do
-        expect(job_with_last_error.last_error).to eq error_message
+  if last_error_limit = described_class.type_for_attribute(:last_error).limit
+    describe "#last_error=" do
+      subject(:job_with_last_error) do
+        described_class.new(payload_object: EnqueueJobMod.new, last_error: error_message)
       end
 
-      it "allows to persist the record" do
-        expect { job_with_last_error.save! }.not_to raise_error
+      describe "with a short error message" do
+        let(:error_message) { "foo" }
+
+        it "does not touch the message" do
+          expect(job_with_last_error.last_error).to eq error_message
+        end
+
+        it "allows to persist the record" do
+          expect { job_with_last_error.save! }.not_to raise_error
+        end
       end
-    end
 
-    describe "with a (too) long error message" do
-      let(:error_message) { "X" * (described_class::MAX_LAST_ERROR_LENGTH + 1) }
+      describe "with a (too) long error message" do
+        let(:error_message) { "X" * (last_error_limit + 1) }
 
-      it "truncates error message length so that it fits into last_error column" do
-        expect(job_with_last_error.last_error.length).to eq described_class::MAX_LAST_ERROR_LENGTH
-        expect(job_with_last_error.last_error).to eq error_message[0...described_class::MAX_LAST_ERROR_LENGTH]
-      end
+        it "truncates error message length so that it fits into last_error column" do
+          expect(job_with_last_error.last_error.length).to eq last_error_limit
+          expect(job_with_last_error.last_error).to eq error_message[0...last_error_limit]
+        end
 
-      it "allows to persist the record" do
-        expect { job_with_last_error.save! }.not_to raise_error
+        it "allows to persist the record" do
+          expect { job_with_last_error.save! }.not_to raise_error
+        end
       end
     end
   end

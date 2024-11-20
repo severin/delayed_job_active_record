@@ -208,10 +208,15 @@ module Delayed
           super
         end
 
-        MAX_LAST_ERROR_LENGTH = (2**16) - 1 # TEXT column can hold up to 2^16 characters
-
+        # Truncate `last_error` to the maximum column length if necessary.
+        # This prevents and exception from being raised when the column limit is exceeded
+        # on a MySQL database with strict mode enabled.
         def last_error=(message)
-          super(message[0...MAX_LAST_ERROR_LENGTH])
+          if max_length = type_for_attribute(:last_error).limit
+            message = message.mb_chars.limit(max_length).to_s
+          end
+
+          super(message)
         end
       end
     end
